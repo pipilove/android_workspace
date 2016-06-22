@@ -1,0 +1,12 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+
+    <string name="app_name">FlowGestuer</string>
+    <string name="gesture_reg">手势识别</string>
+    <string name="action_settings">手势设置</string>
+     <string name="ip_setting">ip设置</string>
+    <string name="hello_world">Hello world!</string>
+    <string name="exit">exit</string>
+   
+
+</resources>

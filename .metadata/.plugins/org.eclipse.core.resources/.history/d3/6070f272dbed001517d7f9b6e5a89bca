@@ -1,0 +1,473 @@
+package com.together.fragment;
+
+import android.app.Activity;
+import android.content.Intent;
+import android.os.Bundle;
+import android.os.Handler;
+import android.os.Message;
+import android.support.v4.app.Fragment;
+import android.text.Layout;
+import android.util.Log;
+import android.view.LayoutInflater;
+import android.view.View;
+import android.view.View.OnClickListener;
+import android.view.ViewGroup;
+import android.view.ViewGroup.LayoutParams;
+
+import android.widget.Button;
+import android.widget.ImageView;
+import android.widget.RelativeLayout;
+import android.widget.TextView;
+import android.widget.Toast;
+
+import org.json.JSONException;
+import org.json.JSONObject;
+
+import com.together.activity.GroupCreateActivity;
+import com.together.activity.GroupDetailsActivity;
+import com.together.activity.MainActivity;
+import com.together.activity.R;
+import com.together.activity.group_notice_activity;
+import com.together.bean.ActionItem;
+import com.together.bean.GroupInfo;
+import com.together.constant.Constant;
+import com.together.net.HttpTask;
+import com.together.view.TitlePopup;
+import com.together.view.TitlePopup.OnItemOnClickListener;
+import com.zxing.activity.GroupScanJoinActivity;
+
+public class GroupFragment extends Fragment {
+
+	private TextView groupTextView;
+	private TextView noticeTextView;
+	private RelativeLayout group;
+	private RelativeLayout notice;
+	private RelativeLayout notice_title;
+	private TextView alertTextView;
+//	private ImageView noticeIcon;
+	private TextView line;
+//	private TextView line2;
+//	public static List<GroupInfo> groupbean = new ArrayList<GroupInfo>();
+	public static GroupInfo groupbean = new GroupInfo();
+//	private GroupAdapter groupAdapter;
+	private Button groupTitleButton;// group右上角按钮
+	// 定义标题栏弹窗按钮
+	private TitlePopup titlePopup;
+
+	public View onCreateView(LayoutInflater inflater, ViewGroup container,
+			Bundle savedInstanceState) {
+		System.out.println("GroupFragment");
+		View messageLayout = inflater.inflate(R.layout.main_fragment_group_du,
+				container, false);
+		// 群组列表
+		
+		groupTextView = (TextView) messageLayout
+				.findViewById(R.id.groupTextview);
+		//通告
+		noticeTextView = (TextView) messageLayout
+				.findViewById(R.id.noticeText);
+		group = (RelativeLayout) messageLayout.findViewById(R.id.group);
+		notice = (RelativeLayout) messageLayout.findViewById(R.id.notice);
+		notice_title = (RelativeLayout) messageLayout.findViewById(R.id.notice_title);
+		
+		line = (TextView) messageLayout
+				.findViewById(R.id.line);
+		alertTextView = (TextView)messageLayout
+				.findViewById(R.id.alertText);
+
+		groupTextView.setOnClickListener(new View.OnClickListener() {
+			
+			@Override
+			public void onClick(View v) {
+				
+				Log.d("GroupDetail", "group line clicked");
+				
+				Intent groupdetailIntent = new Intent();
+				groupdetailIntent.setClass(getActivity(),
+						GroupDetailsActivity.class);
+				groupdetailIntent.putExtra("position", 0);
+				startActivity(groupdetailIntent);
+				
+				
+			}
+		});
+		noticeTextView.setOnClickListener(new View.OnClickListener() {
+			
+			@Override
+			public void onClick(View v) {
+				Intent groupnoticeIntent = new Intent();
+				groupnoticeIntent.setClass(getActivity(),
+						group_notice_activity.class);
+				
+				startActivity(groupnoticeIntent);
+				
+				
+			}
+		});
+//		groupListView.setOnClickListener(new OnClickListener() {
+//
+//			@Override
+//			public void onClick) {
+//				// 显示具体群信息
+//				Intent groupdetailIntent = new Intent();
+//				groupdetailIntent.setClass(getActivity(),
+//						GroupDetailsActivity.class);
+//				groupdetailIntent.putExtra("position", position);
+//				startActivity(groupdetailIntent);
+//			}
+//		});
+
+		// 群组右上角菜单
+		groupTitleButton = (Button) messageLayout
+				.findViewById(R.id.groupTitleButton);
+		groupTitleButton.setOnClickListener(new OnClickListener() {
+
+			@Override
+			public void onClick(View v) {
+				// TODO Auto-generated method stub
+				titlePopup.show(v);
+			}
+		});
+
+		// 实例化标题栏弹窗
+		titlePopup = new TitlePopup(getActivity(), LayoutParams.WRAP_CONTENT,
+				LayoutParams.WRAP_CONTENT);
+		initData();
+		titlePopup.setItemOnClickListener(new OnItemOnClickListener() {
+
+			@Override
+			public void onItemClick(ActionItem item, int position) {
+				// TODO Auto-generated method stub
+				switch (position) {
+				case 0:// 新建群组
+					noticeTextView.setText("");
+					MainActivity.userinfo.setUserInfo(
+							Constant.USERINFO_GROUPNOTICE,
+							"点击这里设置群公告吧");
+					Intent groupcreateIntent = new Intent();
+					groupcreateIntent.setClass(getActivity(),
+							GroupCreateActivity.class);
+					startActivity(groupcreateIntent);
+					break;
+				case 1:// 扫一扫加入群组
+/*					startActivity(new Intent().setClass(getActivity(),
+							GroupScanJoinActivity.class));*/
+					startActivityForResult(new Intent().setClass(getActivity(),
+							GroupScanJoinActivity.class), 101);
+					break;
+				default:
+					break;
+				}
+			}
+		});
+		return messageLayout;
+	}
+
+	/**
+	 * 初始化数据
+	 */
+	private void initData() {
+		// 给标题栏弹窗添加子类
+		titlePopup.addAction(new ActionItem(getActivity(),
+				R.string.group_create_text, R.drawable.group_create));
+		// titlePopup.addAction(new ActionItem(getActivity(),
+		// R.string.group_search_text, R.drawable.group_search));
+		titlePopup.addAction(new ActionItem(getActivity(),
+				R.string.group_rcode_text, R.drawable.group_rcode));
+		// titlePopup.addAction(new ActionItem(getActivity(),
+		// R.string.group_setting_text, R.drawable.group_setting));
+	}
+
+	private void getGroupName() {
+		
+		final JSONObject jsonGroupInfo = new JSONObject();
+		try {
+			jsonGroupInfo.put("memberID", MainActivity.userinfo
+					.getStringUserInfo(Constant.USERINFO_MEMBERID));
+			jsonGroupInfo.put("groupID", MainActivity.userinfo
+					.getStringUserInfo(Constant.USERINFO_GROUPID));
+		} catch (JSONException e) {
+			e.printStackTrace();
+		}
+		
+		new HttpTask(new Handler() {
+			@Override
+			public void handleMessage(Message msg) {
+				
+				Log.d("返回UI线程", msg.getData().getString("result"));
+				try {
+					JSONObject groupinfoJson = new JSONObject(msg
+							.getData().getString("result"));// + "}");
+
+					groupTextView.setText( groupinfoJson.getString("groupName"));
+				} catch (Exception e) {
+					Log.e("!!! "
+							+ this.getClass().getName().split("\\.")[this
+									.getClass().getName().split("\\.").length - 1]
+							+ " !!!", Log.getStackTraceString(e));
+					groupTextView.setText( "获取组名失败");
+				}
+			}
+		}).execute(Constant.BASIC_URL
+				+ Constant.POST_GET_GROUP_INFO,
+				jsonGroupInfo.toString());
+	}
+	
+	/*
+	 * (non-Javadoc)
+	 * 
+	 * @see android.support.v4.app.Fragment#onCreate(android.os.Bundle)
+	 */
+	@Override
+	public void onCreate(Bundle savedInstanceState) {
+		// TODO Auto-generated method stub
+		super.onCreate(savedInstanceState);
+
+//		groupbean.clear();
+		// 判断用户是否已经属于某个组
+		// if (MainActivity.userinfo
+		// .getBooleanUserInfo(Constant.USERINFO_IS_INGROUP)) {
+		if (!MainActivity.userinfo.getStringUserInfo(Constant.USERINFO_GROUPID)
+				.equals("0")) {
+			groupbean = new GroupInfo(MainActivity.userinfo
+					.getStringUserInfo(Constant.USERINFO_GROUPID),
+					MainActivity.userinfo
+							.getStringUserInfo(Constant.USERINFO_GROUPNAME),
+					MainActivity.userinfo
+							.getStringUserInfo(Constant.USERINFO_GROUPPLAN),
+					MainActivity.userinfo
+							.getStringUserInfo(Constant.USERINFO_GROUPSTART),
+					MainActivity.userinfo
+							.getStringUserInfo(Constant.USERINFO_GROUPEND),
+					MainActivity.userinfo
+							.getStringUserInfo(Constant.USERINFO_ONWNERID),
+					MainActivity.userinfo
+					.getStringUserInfo(Constant.USERINFO_GROUPNOTICE));
+			try
+			{
+				if(!MainActivity.userinfo.getStringUserInfo(Constant.USERINFO_GROUPNAME).equals("0")){
+					groupTextView.setText(MainActivity.userinfo
+						.getStringUserInfo(Constant.USERINFO_GROUPNAME));
+				}
+				else{
+					Toast.makeText(getActivity(), "没有设置组名称",
+							Toast.LENGTH_SHORT).show();
+				}
+				
+			}catch (NullPointerException e) {
+				e.printStackTrace();
+			}
+			try
+			{
+				
+				if(!MainActivity.userinfo.getStringUserInfo(Constant.USERINFO_GROUPNOTICE).equals("0")
+						){
+							noticeTextView.setText(MainActivity.userinfo
+								.getStringUserInfo(Constant.USERINFO_GROUPNOTICE));
+						}
+						else{
+							Toast.makeText(getActivity(), "没有设置群公告",
+									Toast.LENGTH_SHORT).show();
+						}
+			}catch (NullPointerException e) {
+				e.printStackTrace();
+			}
+				
+				
+		} else {
+			Toast.makeText(getActivity(), "你没有加入任何群",
+					Toast.LENGTH_SHORT).show();
+//			noticeTextView.setVisibility(View.GONE);
+//			groupTextView.setVisibility(View.GONE);
+			line.setVisibility(View.GONE);
+//			line2.setVisibility(View.GONE);
+//			noticeIcon.setVisibility(View.GONE);
+			alertTextView.setVisibility(View.VISIBLE);
+//			noticeTextView.setText("没有加入或创建群，无法设置群公告");
+//			groupTextView.setText("无群");
+			notice.setVisibility(View.GONE);
+			group.setVisibility(View.GONE);
+			notice_title.setVisibility(View.GONE);
+			
+		}
+
+		// groupbean.add(new GroupInfo("我们一起嗨","我们一起嗨","北京","怀柔"));
+	}
+
+	/*
+	 * (non-Javadoc)
+	 * 
+	 * @see android.support.v4.app.Fragment#onActivityCreated(android.os.Bundle)
+	 */
+	@Override
+	public void onActivityCreated(Bundle savedInstanceState) {
+		// TODO Auto-generated method stub
+		super.onActivityCreated(savedInstanceState);
+	}
+
+	/*
+	 * (non-Javadoc)
+	 * 
+	 * @see android.support.v4.app.Fragment#onAttach(android.app.Activity)
+	 */
+	@Override
+	public void onAttach(Activity activity) {
+		// TODO Auto-generated method stub
+		super.onAttach(activity);
+	}
+
+	/*
+	 * (non-Javadoc)
+	 * 
+	 * @see android.support.v4.app.Fragment#onDestroy()
+	 */
+	@Override
+	public void onDestroy() {
+		// TODO Auto-generated method stub
+		super.onDestroy();
+	}
+
+	/*
+	 * (non-Javadoc)
+	 * 
+	 * @see android.support.v4.app.Fragment#onDetach()
+	 */
+	@Override
+	public void onDetach() {
+		// TODO Auto-generated method stub
+		super.onDetach();
+	}
+
+	/*
+	 * (non-Javadoc)
+	 * 
+	 * @see android.support.v4.app.Fragment#onPause()
+	 */
+	@Override
+	public void onPause() {
+		// TODO Auto-generated method stub
+		super.onPause();
+	}
+
+	/*
+	 * (non-Javadoc)
+	 * 
+	 * @see android.support.v4.app.Fragment#onResume()
+	 */
+	@Override
+	public void onResume() {
+		// TODO Auto-generated method stub
+		super.onResume();
+
+		getGroupName();
+//		groupbean.clear();
+		// 判断用户是否已经属于某个组
+		if (MainActivity.userinfo
+				.getBooleanUserInfo(Constant.USERINFO_IS_INGROUP)) {
+			groupbean = new GroupInfo(MainActivity.userinfo
+					.getStringUserInfo(Constant.USERINFO_GROUPID),
+					MainActivity.userinfo
+							.getStringUserInfo(Constant.USERINFO_GROUPNAME),
+					MainActivity.userinfo
+							.getStringUserInfo(Constant.USERINFO_GROUPPLAN),
+					MainActivity.userinfo
+							.getStringUserInfo(Constant.USERINFO_GROUPSTART),
+					MainActivity.userinfo
+							.getStringUserInfo(Constant.USERINFO_GROUPEND),
+					MainActivity.userinfo
+							.getStringUserInfo(Constant.USERINFO_ONWNERID),
+					MainActivity.userinfo
+					.getStringUserInfo(Constant.USERINFO_GROUPNOTICE));		
+						
+							
+			try{
+				if(!MainActivity.userinfo.getStringUserInfo(Constant.USERINFO_GROUPNAME)
+				.equals(0)){
+					groupTextView.setText(MainActivity.userinfo
+					.getStringUserInfo(Constant.USERINFO_GROUPNAME));
+				}
+				else{
+					Toast.makeText(getActivity(), "没有设置组名称",
+							Toast.LENGTH_SHORT).show();
+				}
+				
+					
+				
+			}catch(NullPointerException e)
+			{
+				e.printStackTrace();
+			}
+			try{
+				
+				if(!MainActivity.userinfo.getStringUserInfo(Constant.USERINFO_GROUPNOTICE)
+						.equals("0")){
+							noticeTextView.setText(MainActivity.userinfo
+								.getStringUserInfo(Constant.USERINFO_GROUPNOTICE));
+						}
+						else{
+							Toast.makeText(getActivity(), "没有设置群公告",
+									Toast.LENGTH_SHORT).show();
+						}
+				
+			}catch(NullPointerException e)
+			{
+				e.printStackTrace();
+			}
+		} else {
+			
+			Toast.makeText(getActivity(), "你没有加入任何群",
+					Toast.LENGTH_SHORT).show();
+//			noticeTextView.setVisibility(View.GONE);
+//			groupTextView.setVisibility(View.GONE);
+			line.setVisibility(View.GONE);
+//			line2.setVisibility(View.GONE);
+//			noticeIcon.setVisibility(View.GONE);
+			alertTextView.setVisibility(View.VISIBLE);
+//			noticeTextView.setText("没有加入或创建群，无法设置群公告");
+//			groupTextView.setText("无群");
+			notice.setVisibility(View.GONE);
+			group.setVisibility(View.GONE);
+			notice_title.setVisibility(View.GONE);
+			
+		}
+
+//		groupListView.setAdapter(groupAdapter);
+	}
+
+	/*
+	 * (non-Javadoc)
+	 * 
+	 * @see android.support.v4.app.Fragment#onStart()
+	 */
+	@Override
+	public void onStart() {
+		// TODO Auto-generated method stub
+		super.onStart();
+	}
+
+	/*
+	 * (non-Javadoc)
+	 * 
+	 * @see android.support.v4.app.Fragment#onStop()
+	 */
+	@Override
+	public void onStop() {
+		// TODO Auto-generated method stub
+		super.onStop();
+	}
+
+	@Override
+	public void onActivityResult(int requestCode, int resultCode, Intent data) {
+		Toast.makeText(getActivity(),"已经进来 了",Toast.LENGTH_SHORT).show();
+		// TODO Auto-generated method stub
+		super.onActivityResult(requestCode, resultCode, data);
+		if(resultCode==101){
+			Toast.makeText(getActivity(), "返回"+getActivity().getIntent().getExtras().getString("groupNameString"), Toast.LENGTH_SHORT).show();
+			/*		groupTextView.setText(getActivity().getIntent().getExtras().getString("groupNameString"));
+					noticeTextView.setText(getActivity().getIntent().getExtras().getString("groupNoticeString"));*/
+		}
+	}
+
+	
+	
+}

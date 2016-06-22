@@ -1,0 +1,9 @@
+bookmarkIndicationHighlighting=true
+bookmarkIndicationInVerticalRuler=false
+bookmarkTextStyle=NONE
+eclipse.preferences.version=1
+lineNumberRuler=true
+occurrenceIndicationColor=128,255,255
+occurrenceIndicationInVerticalRuler=true
+overviewRuler_migration=migrated_3.1
+spellingEngine=org.eclipse.jdt.internal.ui.text.spelling.DefaultSpellingEngine
